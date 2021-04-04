@@ -1,0 +1,41 @@
+<!-- Copyright (c) Microsoft Corporation. All rights reserved. -->
+<!-- Licensed under the MIT License. -->
+
+<!DOCTYPE html>
+<html lang="en" style="height: 100%">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>💧</text></svg>" />
+    <link rel="stylesheet" href="https://cdn.quilljs.com/2.0.0-dev.4/quill.core.css">
+    <link rel="stylesheet" href="https://cdn.quilljs.com/2.0.0-dev.4/quill.snow.css">
+    <link rel="stylesheet" href="https://cdn.quilljs.com/2.0.0-dev.4/quill.bubble.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/default.min.css">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/highlight.min.js"></script>
+    <script>
+        hljs.configure({   // optionally configure hljs
+            languages: ['javascript', 'ruby', 'python']
+        });
+    </script>
+    <title>Quill Playground</title>
+</head>
+
+<body style="margin: 0; height: 100%">
+    <!-- <div id="content" style="min-height: 50%"></div> -->
+    <!-- <button id="table">table</button>
+    <button id="readout">deltas</button> -->
+    <!-- <div id="toolbar"></div> -->
+    <div id="editor" style="border: 2px dashed blue;"></div>
+    <div style="display:flex; width: 100%;">
+        <div id="editorA" style="border: 2px dashed red; flex:0 0 40%">
+        </div>
+        
+        <div id="editorB" style="border: 2px dashed green; flex:0 0 40%">
+        </div>
+        
+      </div>
+</body>
+
+</html>

@@ -1,43 +1,36 @@
 import Quill, { Sources } from "quill";
-import Delta from "quill-delta";
-import JSONFormatter from 'json-formatter-js'
+import { tob,
+        aPending,
+        bPending,
+        start,
+        ACatchUp,
+        ALabel,
+        ALogButton,
+        ARemoteButton,
+        BCatchUp,
+        BLabel,
+        BLogButton,
+        BRemoteButton,
+        quillConfig} from "./globals";
+import { updateOpList, updateJSON, IDelta, updateOpLabel } from "./utils";
 
-interface IDelta extends Delta {
-    user: string;
-    refSeq: number;
-    seq: number;
-}
-
-let start = new Delta().insert("Hello ").insert("World", { bold: true }).insert("!");
-const tob = new Array<IDelta>();
-const aPending = new Array<IDelta>();
-const bPending = new Array<IDelta>();
 
 let EditorA_IndexOfRemoteOps = 0;
-
 let EditorB_IndexOfRemoteOps = 0;
-
-const ARemoteButton = document.getElementById("A-ApplyRemote") as HTMLButtonElement;
-const ALogButton = document.getElementById("A-LogDeltas") as HTMLButtonElement;
-const ACatchUp = document.getElementById("A-CatchUp") as HTMLButtonElement;
-const ALabel = document.getElementById("A-Local-Number") as HTMLLabelElement;
-
-const BRemoteButton = document.getElementById("B-ApplyRemote") as HTMLButtonElement;
-const BLogButton = document.getElementById("B-LogDeltas") as HTMLButtonElement;
-const BCatchUp = document.getElementById("B-CatchUp") as HTMLButtonElement;
-const BLabel = document.getElementById("B-Local-Number") as HTMLLabelElement;
 
 /**
  * 
- * This is the 
+ * Take an op off the TOB and apply it to the local state, accounting for any unseen ops
+ * TODO: account for pending ops 
+ *      (pending hasn't been implemented as a concept, right now ops get generated and are immediately ordered)
  * 
- * @param editor 
- * @param index 
- * @param source 
- * @param editorId 
- * @returns 
+ * @param editor The QuillJS Editor that gets the change
+ * @param index The Sequence number to pull from total order broadcast
+ * @param source string source ("client, api, silent")
+ * @param editorId editorid of the editor
+ * @returns void
  */
-function apply(editor: Quill, index: number, source: Sources, editorId: string) {
+function apply(editor: Quill, index: number, source: Sources, editorId: string): void {
     let op = tob[index];
     
     let refSeq = op.refSeq
@@ -82,9 +75,9 @@ function apply(editor: Quill, index: number, source: Sources, editorId: string) 
     }
     
     if (editorId === "a") {
-        ALabel.innerText = `Op Number: ${EditorA_IndexOfRemoteOps-1}`;
+        updateOpLabel(ALabel, EditorA_IndexOfRemoteOps);
     } else if (editorId === "b") {
-        BLabel.innerText = `Op Number: ${EditorB_IndexOfRemoteOps-1}`;
+        updateOpLabel(BLabel, EditorB_IndexOfRemoteOps);
     }
 }
 
@@ -95,18 +88,6 @@ function getStarted(editorA: Quill, editorB: Quill) {
     updateOpList();
 }
 
-function updateOpList() {
-    const opsListDiv = document.getElementById("ops") as HTMLDivElement;
-    updateJSON(opsListDiv, tob);
-}
-
-function updateJSON(el: HTMLElement, jsonable: any) {
-    el.innerHTML = "";
-    const json = new JSONFormatter(jsonable);
-    el.appendChild(json.render());
-    json.openAtDepth(3);
-}
-
 export function main() {
     const editorADiv = document.getElementById("editorA")!;
     const editorAJson = document.getElementById("editorAJson")!;
@@ -114,44 +95,8 @@ export function main() {
     const editorBDiv = document.getElementById("editorB")!;
     const editorBJson = document.getElementById("editorBJson")!;
 
-    const toolbarOptions = [
-        ["bold", "italic", "underline", "strike"],        // toggled buttons
-        ["blockquote", "code-block"],
-
-        [{ header: 1 }, { header: 2 }],               // custom button values
-        [{ list: "ordered" }, { list: "bullet" }],
-        [{ script: "sub" }, { script: "super" }],      // superscript/subscript
-        [{ indent: "-1" }, { indent: "+1" }],          // outdent/indent
-        [{ direction: "rtl" }],                         // text direction
-
-        [{ size: ["small", false, "large", "huge"] }],  // custom dropdown
-        [{ header: [1, 2, 3, 4, 5, 6, false] }],
-
-        [{ color: [] }, { background: [] }],          // dropdown with defaults from theme
-        [{ font: [] }],
-        [{ align: [] }],
-        [{ table: true }],
-
-        ["clean"],                                  // remove formatting button
-    ];
-
-    const editorA = new Quill(editorADiv, {
-        modules: {
-            toolbar: toolbarOptions,
-            syntax: true,
-            table: true,
-        },
-        theme: "snow",
-    });
-
-    const editorB = new Quill(editorBDiv, {
-        modules: {
-            toolbar: toolbarOptions,
-            syntax: true,
-            table: true,
-        },
-        theme: "snow",
-    });
+    const editorA = new Quill(editorADiv, quillConfig);
+    const editorB = new Quill(editorBDiv, quillConfig);
 
     ARemoteButton.onclick = () => apply(editorA, EditorA_IndexOfRemoteOps++, "api", "a");
     ALogButton.onclick = () => console.log(editorA.getContents());
@@ -160,6 +105,20 @@ export function main() {
             apply(editorA, EditorA_IndexOfRemoteOps++, "api", "a");
         }
     }
+
+    BRemoteButton.onclick = () => apply(editorB, EditorB_IndexOfRemoteOps++, "api", "b");
+    BLogButton.onclick = () => console.log(editorB.getContents());
+    BCatchUp.onclick = () => { 
+        while(EditorB_IndexOfRemoteOps < tob.length ) {
+            apply(editorB, EditorB_IndexOfRemoteOps++, "api", "b");
+        }
+    }
+
+
+    /**
+     * Listen to changes in the editor & broadcast them if they're generated locally
+     *  (remote changes are source === "api", "api" is given as source in the apply function)
+     */
     editorA.on("text-change", (delta, oldDelta, source) => {
         if (source === "user") {
             (delta as IDelta).user = "a";
@@ -173,13 +132,6 @@ export function main() {
         updateJSON(editorAJson, editorA.getContents() as any);
     })
 
-    BRemoteButton.onclick = () => apply(editorB, EditorB_IndexOfRemoteOps++, "api", "b");
-    BLogButton.onclick = () => console.log(editorB.getContents());
-    BCatchUp.onclick = () => { 
-        while(EditorB_IndexOfRemoteOps < tob.length ) {
-            apply(editorB, EditorB_IndexOfRemoteOps++, "api", "b");
-        }
-    }
     editorB.on("text-change", (delta, oldDelta, source) => {
         if (source === "user") {
             (delta as IDelta).user = "b";
@@ -196,4 +148,5 @@ export function main() {
     // Seed Data
     getStarted(editorA, editorB);
 }
+
 main();

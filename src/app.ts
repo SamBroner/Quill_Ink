@@ -27,6 +27,16 @@ const BLogButton = document.getElementById("B-LogDeltas") as HTMLButtonElement;
 const BCatchUp = document.getElementById("B-CatchUp") as HTMLButtonElement;
 const BLabel = document.getElementById("B-Local-Number") as HTMLLabelElement;
 
+/**
+ * 
+ * This is the 
+ * 
+ * @param editor 
+ * @param index 
+ * @param source 
+ * @param editorId 
+ * @returns 
+ */
 function apply(editor: Quill, index: number, source: Sources, editorId: string) {
     let op = tob[index];
     

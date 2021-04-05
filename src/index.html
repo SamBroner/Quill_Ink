@@ -23,17 +23,16 @@
 </head>
 
 <body style="margin: 0; height: 100%">
-    <!-- <div id="content" style="min-height: 50%"></div> -->
-    <!-- <button id="table">table</button>
-    <button id="readout">deltas</button> -->
-    <!-- <div id="toolbar"></div> -->
+
     <div style="display:flex; width: 100%">
-        <div id="ops" style="border: 2px dashed blue; flex:0 0 15%"></div>
+        <div style="border: 2px dashed blue; flex:0 0 15%">
+            <h2>Total Order Broadcast</h2>
+            <div id="ops"></div>
+        </div>
 
         <div style="border: 2px dashed red; flex:0 0 40%">
             <h2>Editor A</h2>
             <label id="A-Local-Number"></label>
-            <!-- <button id="A-ApplyLocal">Apply Local</button> -->
             <label id="A-Remote-Number"></label>
             <button id="A-ApplyRemote">Apply Remote</button>
             <button id="A-CatchUp">Catch Up</button>
@@ -48,7 +47,6 @@
         <div style="border: 2px dashed green; flex:0 0 40%">
             <h2>Editor B</h2>
             <label id="B-Local-Number"></label>
-            <!-- <button id="B-ApplyLocal">Apply Local</button> -->
             <label id="B-Remote-Number"></label>
             <button id="B-ApplyRemote">Apply Remote</button>
             <button id="B-CatchUp">Catch Up</button>

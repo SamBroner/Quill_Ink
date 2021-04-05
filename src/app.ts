@@ -1,76 +1,108 @@
-import Quill from "quill";
+import Quill, { Sources } from "quill";
 import Delta from "quill-delta";
+import JSONFormatter from 'json-formatter-js'
 
-let start = new Delta().insert("Hello ").insert("World", { bold: true }).insert("!");
-let a = new Array<Delta>();
-let b = new Array<Delta>();
-const tob = new Array<Delta>();
-
-let EditorA_IndexOfLocalOps = 0;
-let EditorA_IndexOfRemoteOps = 0;
-
-let EditorB_IndexOfLocalOps = 0;
-let EditorB_IndexOfRemoteOps = 0;
-
-const ALocalButton = document.getElementById("A-ApplyLocal") as HTMLButtonElement;
-const ARemoteButton = document.getElementById("A-ApplyRemote") as HTMLButtonElement;
-const ALogButton = document.getElementById("A-LogDeltas") as HTMLButtonElement;
-const BLocalButton = document.getElementById("B-ApplyLocal") as HTMLButtonElement;
-const BRemoteButton = document.getElementById("B-ApplyRemote") as HTMLButtonElement;
-const BLogButton = document.getElementById("B-LogDeltas") as HTMLButtonElement;
-
-a.push(new Delta().insert('a', { italic: true }));
-a.push(new Delta().retain(6).insert(" Sam,"));
-a.push(new Delta().delete(7));
-
-b.push(new Delta().insert('b', { bold: true }).retain(5).insert('c', { bold: TextTrackCueList }));
-
-function apply(editor: Quill, deltaList: Delta[], index: number) {
-    console.log(index);
-    if (deltaList.length <= index) {
-        alert("no more ops");
-        return;
-    }
-    editor.updateContents(deltaList[index]);
+interface IDelta extends Delta {
+    user: string;
+    refSeq: number;
+    seq: number;
 }
 
-function applyRemoteOp(editor: Quill, delta: Delta) {
+let start = new Delta().insert("Hello ").insert("World", { bold: true }).insert("!");
+const tob = new Array<IDelta>();
+const aPending = new Array<IDelta>();
+const bPending = new Array<IDelta>();
+
+let EditorA_IndexOfRemoteOps = 0;
+
+let EditorB_IndexOfRemoteOps = 0;
+
+const ARemoteButton = document.getElementById("A-ApplyRemote") as HTMLButtonElement;
+const ALogButton = document.getElementById("A-LogDeltas") as HTMLButtonElement;
+const ACatchUp = document.getElementById("A-CatchUp") as HTMLButtonElement;
+const ALabel = document.getElementById("A-Local-Number") as HTMLLabelElement;
+
+const BRemoteButton = document.getElementById("B-ApplyRemote") as HTMLButtonElement;
+const BLogButton = document.getElementById("B-LogDeltas") as HTMLButtonElement;
+const BCatchUp = document.getElementById("B-CatchUp") as HTMLButtonElement;
+const BLabel = document.getElementById("B-Local-Number") as HTMLLabelElement;
+
+function apply(editor: Quill, index: number, source: Sources, editorId: string) {
+    let op = tob[index];
     
+    let refSeq = op.refSeq
+    let editorRefSeq = op.seq; // This is equivalent to deltamanager.refSeq
+
+    if (tob.length <= index) {
+        alert("no more ops");
+        return;
+    } else if (tob[index].user === editorId) {
+        if (editorId === "a") aPending.shift();
+        else if (editorId === "b") bPending.shift();
+    } else {
+        
+        const deltas = tob.slice(refSeq, editorRefSeq);
+
+        for (const delta of deltas) {
+            if (op.user === delta.user) {
+                // skip
+            } else if (op.seq < delta.seq) {
+                let temp = delta.transform(op, false) // op happened before
+                op.ops = temp.ops;
+            } else {
+                let temp = delta.transform(op, true) // delta happened before
+                op.ops = temp.ops;
+            }
+        }
+
+        // IRL, there would be pending ops that didn't make it to the server
+        // e.g. op (thisOp) is always before
+        // for (const delta of pending) {
+        //     if (op.seq < delta.seq) {
+        //         let temp = delta.transform(op, true)
+        //         op.ops = temp.ops;
+        //     }
+        //     else {
+        //         let temp = delta.transform(op, false)
+        //         op.ops = temp.ops;
+        //     }
+        // }
+
+        editor.updateContents(op, source);
+    }
+    
+    if (editorId === "a") {
+        ALabel.innerText = `Op Number: ${EditorA_IndexOfRemoteOps-1}`;
+    } else if (editorId === "b") {
+        BLabel.innerText = `Op Number: ${EditorB_IndexOfRemoteOps-1}`;
+    }
 }
 
 function getStarted(editorA: Quill, editorB: Quill) {
-    ALocalButton.click();
-    BLocalButton.click();
+    (start as IDelta).user = "start";
+    tob.push(start as IDelta);
 
-    /**
- * Transform b and apply it.
- * - This change transforms b with regards to a
- * - The "a op" has already been applied
- * - the "b op" was created without seeing "a op"
- */
-    editorA.updateContents(a[0].transform(b[EditorA_IndexOfRemoteOps]))
-    // editorA.updateContents(b[EditorA_IndexOfRemoteOps])
-
-
-    /**
-     * Transform a and apply it (priority "true")
-     */
-    editorB.updateContents(b[0].transform(a[0], true));
-
+    updateOpList();
 }
 
 function updateOpList() {
     const opsListDiv = document.getElementById("ops") as HTMLDivElement;
-    opsListDiv.innerHTML = "";
-    
-    const opsList = new HTMLOListElement();
-    opsListDiv.appendChild(opsList);
-    for (const )
+    updateJSON(opsListDiv, tob);
+}
+
+function updateJSON(el: HTMLElement, jsonable: any) {
+    el.innerHTML = "";
+    const json = new JSONFormatter(jsonable);
+    el.appendChild(json.render());
+    json.openAtDepth(3);
 }
 
 export function main() {
     const editorADiv = document.getElementById("editorA")!;
+    const editorAJson = document.getElementById("editorAJson")!;
+
     const editorBDiv = document.getElementById("editorB")!;
+    const editorBJson = document.getElementById("editorBJson")!;
 
     const toolbarOptions = [
         ["bold", "italic", "underline", "strike"],        // toggled buttons
@@ -96,7 +128,7 @@ export function main() {
     const editorA = new Quill(editorADiv, {
         modules: {
             toolbar: toolbarOptions,
-            syntax: true,              // Include syntax module
+            syntax: true,
             table: true,
         },
         theme: "snow",
@@ -105,60 +137,53 @@ export function main() {
     const editorB = new Quill(editorBDiv, {
         modules: {
             toolbar: toolbarOptions,
-            syntax: true,              // Include syntax module
+            syntax: true,
             table: true,
         },
         theme: "snow",
     });
 
-    editorA.setContents(start);
-    editorB.setContents(start);
-
-    ALocalButton.onclick = () => apply(editorA, a, EditorA_IndexOfLocalOps++);
-    ARemoteButton.onclick = () => apply(editorA, b, EditorA_IndexOfRemoteOps++);
+    ARemoteButton.onclick = () => apply(editorA, EditorA_IndexOfRemoteOps++, "api", "a");
     ALogButton.onclick = () => console.log(editorA.getContents());
+    ACatchUp.onclick = () => { 
+        while(EditorA_IndexOfRemoteOps < tob.length ) {
+            apply(editorA, EditorA_IndexOfRemoteOps++, "api", "a");
+        }
+    }
     editorA.on("text-change", (delta, oldDelta, source) => {
-        console.log("----A----")
-        console.log("Delta to be applied:");
-        console.log(delta);
-        console.log("Existing Delta in Editor:");
-        console.log(oldDelta);
-        console.log("source:");
-        console.log(source);
+        if (source === "user") {
+            (delta as IDelta).user = "a";
+            (delta as IDelta).refSeq = EditorA_IndexOfRemoteOps;
+            (delta as IDelta).seq = tob.length;
+            aPending.push(delta as IDelta);
+            tob.push(delta as IDelta);
+            updateOpList();
+        }
+
+        updateJSON(editorAJson, editorA.getContents() as any);
     })
 
-    BLocalButton.onclick = () => apply(editorB, b, EditorB_IndexOfLocalOps++);//editorB.updateContents(b);
-    BRemoteButton.onclick = () => apply(editorB, a, EditorB_IndexOfRemoteOps++);//  editorA.updateContents(a);
+    BRemoteButton.onclick = () => apply(editorB, EditorB_IndexOfRemoteOps++, "api", "b");
     BLogButton.onclick = () => console.log(editorB.getContents());
+    BCatchUp.onclick = () => { 
+        while(EditorB_IndexOfRemoteOps < tob.length ) {
+            apply(editorB, EditorB_IndexOfRemoteOps++, "api", "b");
+        }
+    }
     editorB.on("text-change", (delta, oldDelta, source) => {
-        console.log("----B----")
-        console.log("Delta to be applied:");
-        console.log(delta);
-        console.log("Existing Delta in Editor:");
-        console.log(oldDelta);
-        console.log("source:");
-        console.log(source);
+        if (source === "user") {
+            (delta as IDelta).user = "b";
+            (delta as IDelta).refSeq = EditorB_IndexOfRemoteOps;
+            (delta as IDelta).seq = tob.length;
+            bPending.push(delta as IDelta);
+
+            tob.push(delta as IDelta);
+            updateOpList();
+        }
+        updateJSON(editorBJson, editorB.getContents() as any);
     })
 
-    /**
-     * Apply editorA local op
-     * Apply editorB local op
-     */
+    // Seed Data
     getStarted(editorA, editorB);
-
-    /**
-     * Notes... 
-     * * we need a way to determine consistent op priority
-     * * Priority "true" 
-     *      * means that in ```this.tranform(other, true)```... ```this``` happened first
-     *      * means ```true``` also means that **other** happened second
-     *      * therefore
-     * * Priority "false"
-     *      * means that ```this.tranform(other, false)```...  ```this``` happened second
-     */
-
-    /**
-     * 
-     */
 }
 main();

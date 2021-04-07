@@ -9,17 +9,26 @@ export const tob = new Array<IDelta>();
 export const aPending = new Array<IDelta>();
 export const bPending = new Array<IDelta>();
 
-
 // HTML & Config stuff
 export const ARemoteButton = document.getElementById("A-ApplyRemote") as HTMLButtonElement;
-export const ALogButton = document.getElementById("A-LogDeltas") as HTMLButtonElement;
+export const ASendPendingButton = document.getElementById("A-SendPending") as HTMLButtonElement;
 export const ACatchUp = document.getElementById("A-CatchUp") as HTMLButtonElement;
-export const ALabel = document.getElementById("A-Local-Number") as HTMLLabelElement;
+export const ARefSeqLabel = document.getElementById("A-RefSeq-Number") as HTMLLabelElement;
+export const APendingLabel = document.getElementById("A-Pending-Number") as HTMLLabelElement;
+export const editorADiv = document.getElementById("editorA") as HTMLDivElement;
+export const editorAJson = document.getElementById("editorAJson") as HTMLDivElement;
+export const editorAPending = document.getElementById("editorAPending") as HTMLDivElement;
+
 
 export const BRemoteButton = document.getElementById("B-ApplyRemote") as HTMLButtonElement;
-export const BLogButton = document.getElementById("B-LogDeltas") as HTMLButtonElement;
+export const BSendPendingButton = document.getElementById("B-SendPending") as HTMLButtonElement;
 export const BCatchUp = document.getElementById("B-CatchUp") as HTMLButtonElement;
-export const BLabel = document.getElementById("B-Local-Number") as HTMLLabelElement;
+export const BRefSeqLabel = document.getElementById("B-RefSeq-Number") as HTMLLabelElement;
+export const BPendingLabel = document.getElementById("B-Pending-Number") as HTMLLabelElement;
+export const editorBDiv = document.getElementById("editorB") as HTMLDivElement;
+export const editorBJson = document.getElementById("editorBJson") as HTMLDivElement;
+export const editorBPending = document.getElementById("editorBPending") as HTMLDivElement;
+
 
 export const toolbarOptions = [
     ["bold", "italic", "underline", "strike"],        // toggled buttons

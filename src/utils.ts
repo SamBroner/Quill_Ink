@@ -10,7 +10,6 @@ export function updateJSON(el: HTMLElement, jsonable: any) {
     json.openAtDepth(3);
 }
 
-
 export function updateOpList() {
     const opsListDiv = document.getElementById("ops") as HTMLDivElement;
     updateJSON(opsListDiv, tob);
@@ -23,5 +22,5 @@ export interface IDelta extends Delta {
 }
 
 export function updateOpLabel(label: HTMLLabelElement, num: number) {
-
+    label.innerText = `Ref Seq: ${num}`;
 }

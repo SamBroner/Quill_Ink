@@ -24,13 +24,15 @@
 
 <body style="margin: 0; height: 100%">
 
-    <div style="display:flex; width: 100%">
-        <div style="border: 2px dashed blue; flex:0 0 15%">
+    <div style="display:grid; grid-template-columns: 15% 40% 40% 5%;">
+        <div style="border: 2px dashed blue;">
             <h2>Total Order Broadcast</h2>
+            <button id="consistency">Check Consistency</button>
+            <br></br>
             <div id="ops"></div>
         </div>
 
-        <div style="border: 2px dashed red; flex:0 0 40%">
+        <div style="border: 2px dashed red;">
             <h2>Editor A</h2>
             <label id="A-RefSeq-Number"></label>
             <label id="A-Remote-Number"></label>
@@ -53,14 +55,13 @@
 
         </div>
 
-        <div style="border: 2px dashed green; flex:0 0 40%">
+        <div style="border: 2px dashed green;">
             <h2>Editor B</h2>
             <label id="B-RefSeq-Number"></label>
             <button id="B-ApplyRemote">Apply Remote</button>
             <label id="B-Pending-Number"></label>
             <button id="B-SendPending">Send Pending</button>
             <button id="B-CatchUp">Catch Up</button>
-
 
             <div id="editorB" style="height: 100px"></div>
 
@@ -73,9 +74,7 @@
                     <h3>Pending Ops</h3>
                     <div id="editorBPending"></div>
                 </div>
-                
             </div>
-
         </div>
 
     </div>

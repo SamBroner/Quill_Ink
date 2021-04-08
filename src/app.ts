@@ -1,27 +1,27 @@
 import Quill, { Sources } from "quill";
-import { tob,
-        aPending,
-        bPending,
-        start,
-        ACatchUp,
-        ARefSeqLabel,
-        ARemoteButton,
-        BCatchUp,
-        BRefSeqLabel,
-        BRemoteButton,
-        quillConfig,
-        BSendPendingButton,
-        ASendPendingButton,
-        APendingLabel,
-        BPendingLabel,
-        editorADiv,
-        editorAJson,
-        editorBDiv,
-        editorBJson,
-        editorAPending,
-        editorBPending} from "./globals";
-import { updateOpList, updateJSON, IDelta, updateOpLabel } from "./utils";
-
+import {
+    tob,
+    aPending,
+    bPending,
+    start,
+    ACatchUp,
+    ARefSeqLabel,
+    ARemoteButton,
+    BCatchUp,
+    BRefSeqLabel,
+    BRemoteButton,
+    quillConfig,
+    BSendPendingButton,
+    ASendPendingButton,
+    APendingLabel,
+    BPendingLabel,
+    editorADiv,
+    editorAJson,
+    editorBDiv,
+    editorBJson,
+    consistency,
+} from "./globals";
+import { updateJSON, IDelta, updateOpLabel, sendPending } from "./utils";
 
 let EditorA_IndexOfRemoteOps = 0;
 let EditorB_IndexOfRemoteOps = 0;
@@ -29,8 +29,6 @@ let EditorB_IndexOfRemoteOps = 0;
 /**
  * 
  * Take an op off the TOB and apply it to the local state, accounting for any unseen ops
- * TODO: account for pending ops 
- *      (pending hasn't been implemented as a concept, right now ops get generated and are immediately ordered)
  * 
  * @param editor The QuillJS Editor that gets the change
  * @param index The Sequence number to pull from total order broadcast
@@ -38,9 +36,8 @@ let EditorB_IndexOfRemoteOps = 0;
  * @param editorId editorid of the editor
  * @returns void
  */
-function apply(editor: Quill, index: number, source: Sources, editorId: string): void {
-    let op = tob[index];
-    
+function apply(editor: Quill, op: IDelta, source: Sources, editorId: string): void {
+
     let refSeq = op.refSeq
     let editorRefSeq = op.seq; // This is equivalent to deltamanager.refSeq
     let pending = new Array<IDelta>();
@@ -50,30 +47,25 @@ function apply(editor: Quill, index: number, source: Sources, editorId: string):
         pending = bPending;
     }
 
-    if (tob.length <= index) {
-        alert("no more ops");
-        return;
-    // } else if (tob[index].user === editorId) {
-        // if (editorId === "a") aPending.shift();
-        // else if (editorId === "b") bPending.shift();
+    if (op.user === editorId) {
+        // Is any action necessary here?
     } else {
-        
-        const deltas = tob.slice(refSeq, editorRefSeq);
+        // This is hardly cheating, but we'd want to maintain this in the dds itself
+        const collabWindow = tob.slice(refSeq, editorRefSeq);
 
         // IRL, there would be pending ops that didn't make it to the server
         // e.g. op (thisOp) is always before
         for (const delta of pending) {
-            if (op.seq < delta.seq) {
-                let temp = delta.transform(op, true)
-                op.ops = temp.ops;
+            if (op.user === delta.user) {
+                pending.shift();
             }
-            else {
-                let temp = delta.transform(op, false)
+            else { // pending are always 
+                let temp = delta.transform(op, false) // op happened before
                 op.ops = temp.ops;
             }
         }
 
-        for (const delta of deltas) {
+        for (const delta of collabWindow) {
             if (op.user === delta.user) {
                 // skip
             } else if (op.seq < delta.seq) {
@@ -87,7 +79,7 @@ function apply(editor: Quill, index: number, source: Sources, editorId: string):
 
         editor.updateContents(op, source);
     }
-    
+
     if (editorId === "a") {
         updateOpLabel(ARefSeqLabel, EditorA_IndexOfRemoteOps);
     } else if (editorId === "b") {
@@ -97,9 +89,8 @@ function apply(editor: Quill, index: number, source: Sources, editorId: string):
 
 function getStarted(editorA: Quill, editorB: Quill) {
     (start as IDelta).user = "start";
+    (start as IDelta).seq = 0;
     tob.push(start as IDelta);
-
-    updateOpList();
 }
 
 export function main() {
@@ -107,35 +98,47 @@ export function main() {
     const editorA = new Quill(editorADiv, quillConfig);
     const editorB = new Quill(editorBDiv, quillConfig);
 
-    ARemoteButton.onclick = () => apply(editorA, EditorA_IndexOfRemoteOps++, "api", "a");
+    ARemoteButton.onclick = () => apply(editorA, tob[EditorA_IndexOfRemoteOps++], "api", "a");
     ASendPendingButton.onclick = () => {
-        if (aPending.length > 0) {
-            const delta = (aPending.shift()! as IDelta)
-            delta.seq = tob.length
-            tob.push(delta)
-        }
+        sendPending(aPending, APendingLabel);
         updateOpLabel(APendingLabel, aPending.length);
-        updateOpList();
     }
-    ACatchUp.onclick = () => { 
-        while(EditorA_IndexOfRemoteOps < tob.length ) {
-            apply(editorA, EditorA_IndexOfRemoteOps++, "api", "a");
+    ACatchUp.onclick = () => {
+        while (EditorA_IndexOfRemoteOps < tob.length) {
+            apply(editorA, tob[EditorA_IndexOfRemoteOps++], "api", "a");
+        }
+        while (aPending.length > 0) {
+            sendPending(aPending, APendingLabel);
+            updateOpLabel(APendingLabel, aPending.length);
         }
     }
 
-    BRemoteButton.onclick = () => apply(editorB, EditorB_IndexOfRemoteOps++, "api", "b");
+    BRemoteButton.onclick = () => apply(editorB, tob[EditorB_IndexOfRemoteOps++], "api", "b");
     BSendPendingButton.onclick = () => {
-        if (bPending.length > 0) {
-            const delta = (bPending.shift()! as IDelta)
-            delta.seq = tob.length
-            tob.push(delta)
-        }
-        updateOpLabel(BPendingLabel, bPending.length);
-        updateOpList()
+        sendPending(bPending, BPendingLabel);
+        updateOpLabel(BPendingLabel, bPending.length)
     }
-    BCatchUp.onclick = () => { 
-        while(EditorB_IndexOfRemoteOps < tob.length ) {
-            apply(editorB, EditorB_IndexOfRemoteOps++, "api", "b");
+    BCatchUp.onclick = () => {
+        while (EditorB_IndexOfRemoteOps < tob.length) {
+            apply(editorB, tob[EditorB_IndexOfRemoteOps++], "api", "b");
+        }
+        while (bPending.length > 0) {
+            sendPending(bPending, BPendingLabel);
+            updateOpLabel(BPendingLabel, bPending.length)
+        }
+    }
+
+    consistency.onclick = () => {
+        const aContents = editorA.getContents();
+        const bContents = editorB.getContents();
+
+        if (aContents.diff(bContents).length() !== 0) {
+            if (EditorB_IndexOfRemoteOps === EditorA_IndexOfRemoteOps
+                && bPending.length === 0 && aPending.length === 0) {
+                alert(`Editor A & Editor B are not consistent. You have a problem`)
+            } else {
+                alert("Editors not consistent. However, your editors have pending or remote ops. Catch up both editors, then try again.")
+            }
         }
     }
 
@@ -148,9 +151,7 @@ export function main() {
             (delta as IDelta).user = "a";
             (delta as IDelta).refSeq = EditorA_IndexOfRemoteOps;
             aPending.push(delta as IDelta);
-            updateOpList();
         }
-        updateJSON(editorAPending, aPending);
         updateJSON(editorAJson, editorA.getContents() as any);
     })
 
@@ -160,9 +161,7 @@ export function main() {
             (delta as IDelta).refSeq = EditorB_IndexOfRemoteOps;
             (delta as IDelta).seq = tob.length;
             bPending.push(delta as IDelta);
-            updateOpList();
         }
-        updateJSON(editorBPending, bPending);
         updateJSON(editorBJson, editorB.getContents() as any);
     })
 

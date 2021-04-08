@@ -10,8 +10,15 @@ The project lets you step through applying operations to understand see how ops 
 * utils.ts -> utils
 
 ## ToDo
-* Pending ops that aren't ordered yet.
-  * This is mocked in the apply code
 * A minimum sequence number
 
 ![web app](./ot%20types.png)
+
+
+## Issues
+* New lines are messed up
+  * Repro
+    1. abc in A
+    2. abc in B
+    3. Catchup in B
+    4. Catchup in A
